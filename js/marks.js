@@ -139,7 +139,6 @@ function gradeClass(g){
 }
 
 /* ----------------------- Calculation ----------------------- */
-let pie; // chart instance
 let centerLabel = '—';
 let lastLetter = null;
 let confettiCooldown = 0;
@@ -215,7 +214,8 @@ function compute(){
     wMid,wAss,wFin, mMid,mAss,mFin,
     cMid,cAss,cFin, overall, okWeights,
     grade, targetOverall, neededFinalPct, status, needNote,
-    hasValidData: hasWeights && hasMarks
+    // consider valid weights sufficient to enable the UI even if marks are not yet entered
+    hasValidData: hasWeights || hasMarks
   };
 }
 
@@ -271,36 +271,32 @@ function render(state){
     needFinalEl.classList.add('text-info');
   }
 
-  // Chart (current)
-  if (state.hasValidData) {
-    const cMid = (state.wMid * (state.mMid ?? 0)) / 100;
-    const cAss = (state.wAss * (state.mAss ?? 0)) / 100;
-    const cFin = (state.wFin * (state.mFin ?? 0)) / 100;
-    centerLabel = 'Contribution';
-    updateChart([Math.max(0,cMid), Math.max(0,cAss), Math.max(0,cFin)]);
-  } else {
-    centerLabel = '—';
-    updateChart([0, 0, 0]);
-  }
+
 
   // OVERALL UI with grade + progress
   const overallEl = $('#overallBig');
-  if (state.hasValidData && isFinite(state.overall)) {
-    tweenNumber(overallEl, state.overall, {decimals:2});
-  } else {
-    overallEl.textContent = '—'; overallEl.dataset.prev = 0;
+  if (overallEl) {
+    if (state.hasValidData && isFinite(state.overall)) {
+      tweenNumber(overallEl, state.overall, {decimals:2});
+    } else {
+      overallEl.textContent = '—';
+      overallEl.dataset.prev = 0;
+    }
   }
   const pct = (state.hasValidData && isFinite(state.overall)) ? Math.max(0, Math.min(100, state.overall)) : 0;
-  $('#overallBar').style.width = pct + '%';
+  const overallBarEl = $('#overallBar');
+  if (overallBarEl) overallBarEl.style.width = pct + '%';
 
   const letter = (state.hasValidData && isFinite(state.overall)) ? gradeFromPercent(state.overall) : null;
   const gradeEl = $('#overallGrade');
   const prevLetter = lastLetter;
-  gradeEl.textContent = letter ?? '—';
-  gradeEl.className = 'overall-badge ' + (letter ? gradeClass(letter) : 'grade-c');
-  if (letter && prevLetter && letter !== prevLetter){
-    gradeEl.classList.add('sparkle');
-    setTimeout(()=>gradeEl.classList.remove('sparkle'), 900);
+  if (gradeEl) {
+    gradeEl.textContent = letter ?? '—';
+    gradeEl.className = 'overall-badge ' + (letter ? gradeClass(letter) : 'grade-c');
+    if (letter && prevLetter && letter !== prevLetter){
+      gradeEl.classList.add('sparkle');
+      setTimeout(()=>gradeEl.classList.remove('sparkle'), 900);
+    }
   }
   lastLetter = letter;
 }
@@ -311,62 +307,6 @@ function computeAndRender(){
   saveToStorage();
 }
 
-/* ----------------------- Chart (Doughnut + center label) ----------------------- */
-const centerTextPlugin = {
-  id:'centerText',
-  afterDraw(chart, args, opts){
-    const {ctx, chartArea:{width, height}} = chart;
-    ctx.save();
-    ctx.font = '600 14px "Segoe UI", system-ui';
-    ctx.fillStyle = '#a8b5c3';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(centerLabel, chart.getDatasetMeta(0).data[0].x, chart.getDatasetMeta(0).data[0].y - 8);
-
-    // total points sum for quick glance
-    const sum = chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
-    ctx.font = '800 18px "Segoe UI", system-ui';
-    ctx.fillStyle = '#e8eef6';
-    ctx.fillText(sum ? sum.toFixed(1) : '0.0', chart.getDatasetMeta(0).data[0].x, chart.getDatasetMeta(0).data[0].y + 12);
-    ctx.restore();
-  }
-};
-
-function initChart(){
-  const ctx = document.getElementById('contribChart');
-  Chart.register(centerTextPlugin);
-  pie = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Midterm','Assignment','Final'],
-      datasets: [{ 
-        data: [0,0,0],
-        /* ✨ nicer palette */
-        backgroundColor: ['#e76f51', '#f4a261', '#2a9d8f'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '62%',
-      layout: { padding: 8 },
-      plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 14, color: '#e8eef6' } },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmt2(ctx.parsed)} pts` } }
-      },
-      animation: {
-        animateRotate: true, animateScale: true,
-        duration: 650, easing: 'easeOutQuart'
-      }
-    }
-  });
-}
-function updateChart(arr){
-  if (!pie) return;
-  pie.data.datasets[0].data = arr;
-  pie.update();
-}
 
 /* ----------------------- Visibility helpers ----------------------- */
 function setIndividualMarksVisible(on){
@@ -493,7 +433,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
   setIndividualMarksVisible($('#marksModeToggle').checked);
 
-  initChart();
   initReveals();
   initTilt();
   computeAndRender();

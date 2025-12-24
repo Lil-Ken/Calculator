@@ -26,7 +26,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 
 function loadProgramme(){
   // Try a few likely paths (absolute and relative) so the page works when opened from a server or file://
-  const candidates = ['/data/programme_structure.json', 'data/programme_structure.json', '../data/programme_structure.json'];
+  const candidates = ['/Calculator/data/programme_structure.json'];
   let lastErr = null;
   function tryFetch(i){
     if (i >= candidates.length) return Promise.reject(lastErr || new Error('Not found'));
