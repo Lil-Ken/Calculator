@@ -8,50 +8,50 @@ const gradeScale = {
   'C+': 55, 'C': 50, 'F': 0
 };
 
-function clampOneDec(el){
+function clampOneDec(el) {
   let v = (el.value ?? '').replace(',', '.').trim();
   if (v === '') { el.dataset.num = ''; return null; }
   if (v.includes('.')) {
-    const [a,b] = v.split('.');
-    v = a + '.' + (b ? b.substring(0,1) : '');
+    const [a, b] = v.split('.');
+    v = a + '.' + (b ? b.substring(0, 1) : '');
   }
   if (!/^\d{1,3}(\.\d)?$/.test(v)) {
     const parsed = parseFloat(v);
-    if (isNaN(parsed)) { el.dataset.num = ''; el.value=''; return null; }
+    if (isNaN(parsed)) { el.dataset.num = ''; el.value = ''; return null; }
     v = parsed.toString();
     if (v.includes('.')) {
-      const [a,b] = v.split('.');
-      v = a + '.' + (b ? b.substring(0,1) : '');
+      const [a, b] = v.split('.');
+      v = a + '.' + (b ? b.substring(0, 1) : '');
     }
   }
   let num = Math.max(0, Math.min(100, parseFloat(v)));
-  const one = Math.round(num*10)/10;
+  const one = Math.round(num * 10) / 10;
   const s = one.toFixed(1);
   el.value = s.endsWith('.0') ? String(parseInt(s)) : s;
   el.dataset.num = String(one);
   return one;
 }
-function readNum(el){
+function readNum(el) {
   const v = el?.dataset?.num;
   if (v === undefined || v === '') return null;
   const n = parseFloat(v);
   return isNaN(n) ? null : n;
 }
-function fmt2(n){
+function fmt2(n) {
   if (n == null || isNaN(n)) return '—';
-  return (Math.round(n*100)/100).toFixed(2);
+  return (Math.round(n * 100) / 100).toFixed(2);
 }
 
 /* ✨ animated number tween */
-function tweenNumber(el, to, opts={}){
-  if (to==null || !isFinite(to)) { el.textContent = '—'; return; }
+function tweenNumber(el, to, opts = {}) {
+  if (to == null || !isFinite(to)) { el.textContent = '—'; return; }
   const decimals = opts.decimals ?? 2;
   const dur = opts.duration ?? 700;
   const from = parseFloat(el.dataset.prev ?? el.textContent) || 0;
   const start = performance.now();
-  function step(now){
-    const t = Math.min(1, (now - start)/dur);
-    const eased = t<.5 ? 2*t*t : -1+(4-2*t)*t; // easeInOutQuad
+  function step(now) {
+    const t = Math.min(1, (now - start) / dur);
+    const eased = t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // easeInOutQuad
     const val = from + (to - from) * eased;
     el.textContent = val.toFixed(decimals) + (opts.suffix || '');
     if (t < 1) requestAnimationFrame(step);
@@ -60,11 +60,12 @@ function tweenNumber(el, to, opts={}){
   requestAnimationFrame(step);
 }
 
-function updateWeightsUI(){
+function updateWeightsUI() {
   const wMid = readNum($('#wMid')) ?? 0;
   const wAss = readNum($('#wAss')) ?? 0;
+  const wPrac = readNum($('#wPrac')) ?? 0;
   const wFin = readNum($('#wFin')) ?? 0;
-  const sum = wMid + wAss + wFin;
+  const sum = wMid + wAss + wPrac + wFin;
   const progress = $('#weightProgress');
   progress.style.width = Math.min(sum, 100) + '%';
   $('#weightTotal').textContent = Math.round(sum) + '%';
@@ -83,16 +84,16 @@ function updateWeightsUI(){
 }
 
 function toggleWeightInputs(disabled) {
-  ['#wMid', '#wAss', '#wFin', '#wMidSel', '#wAssSel', '#wFinSel'].forEach(sel => {
+  ['#wMid', '#wAss', '#wPrac', '#wFin'].forEach(sel => {
     const el = $(sel);
     if (el) el.disabled = disabled;
   });
 }
 
-function saveToStorage(){
+function saveToStorage() {
   const data = {
-    wMid: $('#wMid').value, wAss: $('#wAss').value, wFin: $('#wFin').value,
-    mMid: $('#mMid')?.value, mAss: $('#mAss')?.value, mFin: $('#mFin')?.value,
+    wMid: $('#wMid').value, wAss: $('#wAss').value, wPrac: $('#wPrac').value, wFin: $('#wFin').value,
+    mMid: $('#mMid')?.value, mAss: $('#mAss')?.value, mPrac: $('#mPrac')?.value, mFin: $('#mFin')?.value,
     mCoursework: $('#mCoursework').value,
     useIndividualMarks: $('#marksModeToggle').checked,
     goal: $('#goalGrade').value,
@@ -100,37 +101,39 @@ function saveToStorage(){
   };
   localStorage.setItem('ggc:v2', JSON.stringify(data));
 }
-function loadFromStorage(){
+function loadFromStorage() {
   const s = localStorage.getItem('ggc:v2');
   if (!s) return;
-  try{
+  try {
     const d = JSON.parse(s);
     if (d.wMid) $('#wMid').value = d.wMid;
     if (d.wAss) $('#wAss').value = d.wAss;
+    if (d.wPrac) $('#wPrac').value = d.wPrac;
     if (d.wFin) $('#wFin').value = d.wFin;
     if (d.mMid) $('#mMid').value = d.mMid;
     if (d.mAss) $('#mAss').value = d.mAss;
+    if (d.mPrac) $('#mPrac').value = d.mPrac;
     if (d.mFin) $('#mFin').value = d.mFin;
     if (d.mCoursework) $('#mCoursework').value = d.mCoursework;
 
     if (d.goal) $('#goalGrade').value = d.goal;
     if (d.coursePreset) { $('#coursePreset').value = d.coursePreset; toggleWeightInputs(d.coursePreset !== ''); }
 
-    ['#wMid','#wAss','#wFin','#mMid','#mAss','#mFin','#mCoursework'].forEach(sel => { const el=$(sel); if(el) clampOneDec(el); });
+    ['#wMid', '#wAss', '#wPrac', '#wFin', '#mMid', '#mAss', '#mPrac', '#mFin', '#mCoursework'].forEach(sel => { const el = $(sel); if (el) clampOneDec(el); });
 
     $('#marksModeToggle').checked = !!d.useIndividualMarks;
     setIndividualMarksVisible($('#marksModeToggle').checked);
-  }catch(e){}
+  } catch (e) { }
 }
 
 /* ----------- Grade helpers ----------- */
-function gradeFromPercent(p){
+function gradeFromPercent(p) {
   if (p == null || isNaN(p)) return null;
-  const entries = Object.entries(gradeScale).sort((a,b)=>b[1]-a[1]);
-  for (const [g,th] of entries){ if (p >= th) return g; }
+  const entries = Object.entries(gradeScale).sort((a, b) => b[1] - a[1]);
+  for (const [g, th] of entries) { if (p >= th) return g; }
   return 'F';
 }
-function gradeClass(g){
+function gradeClass(g) {
   if (!g) return 'grade-c';
   if (g.startsWith('A')) return 'grade-a';
   if (g.startsWith('B')) return 'grade-b';
@@ -143,20 +146,23 @@ let centerLabel = '—';
 let lastLetter = null;
 let confettiCooldown = 0;
 
-function compute(){
+function compute() {
   const wMid = readNum($('#wMid')) ?? 0;
   const wAss = readNum($('#wAss')) ?? 0;
+  const wPrac = readNum($('#wPrac')) ?? 0;
   const wFin = readNum($('#wFin')) ?? 0;
 
   const useIndividualMarks = $('#marksModeToggle').checked;
-  let mMid, mAss;
+  let mMid, mAss, mPrac;
   if (useIndividualMarks) {
     mMid = readNum($('#mMid'));
     mAss = readNum($('#mAss'));
+    mPrac = readNum($('#mPrac'));
   } else {
     const mCoursework = readNum($('#mCoursework'));
     mMid = mCoursework;
     mAss = mCoursework;
+    mPrac = mCoursework;
   }
   const mFin = readNum($('#mFin'));
 
@@ -164,14 +170,15 @@ function compute(){
 
   const cMid = (wMid * (mMid ?? 0)) / 100;
   const cAss = (wAss * (mAss ?? 0)) / 100;
+  const cPrac = (wPrac * (mPrac ?? 0)) / 100;
   const cFin = (wFin * (mFin ?? 0)) / 100;
-  const overall = cMid + cAss + cFin;
+  const overall = cMid + cAss + cPrac + cFin;
 
   // compute coursework equivalent (100%) when in individual marks mode
   let courseworkEquivalent = null;
-  const courseworkWeight = wMid + wAss;
-  if (useIndividualMarks && courseworkWeight > 0 && (mMid !== null || mAss !== null)) {
-    const cw = ((wMid * (mMid ?? 0)) / 100 + (wAss * (mAss ?? 0)) / 100) / courseworkWeight * 100;
+  const courseworkWeight = wMid + wAss + wPrac;
+  if (useIndividualMarks && courseworkWeight > 0 && (mMid !== null || mAss !== null || mPrac !== null)) {
+    const cw = ((wMid * (mMid ?? 0)) / 100 + (wAss * (mAss ?? 0)) / 100 + (wPrac * (mPrac ?? 0)) / 100) / courseworkWeight * 100;
     if (isFinite(cw)) courseworkEquivalent = Math.max(0, Math.min(100, cw));
   }
 
@@ -181,28 +188,28 @@ function compute(){
   let needNote = '';
   let status = 'Start entering values';
 
-  const hasMarks = (mMid !== null || mAss !== null || mFin !== null);
+  const hasMarks = (mMid !== null || mAss !== null || mPrac !== null || mFin !== null);
   const hasWeights = okWeights;
 
-  if (hasWeights && hasMarks){
-    if (wFin <= 0.0001){
+  if (hasWeights && hasMarks) {
+    if (wFin <= 0.0001) {
       neededFinalPct = null;
       needNote = 'Final weight is 0%. Goal depends only on coursework.';
       status = overall >= targetOverall ? 'Goal reached' : 'Final not used';
     } else {
-      const required = ((targetOverall - (cMid + cAss)) / (wFin/100));
+      const required = ((targetOverall - (cMid + cAss + cPrac)) / (wFin / 100));
       neededFinalPct = required;
 
-      if (!isFinite(required)){
+      if (!isFinite(required)) {
         neededFinalPct = null;
         needNote = 'Enter marks and valid weights.';
         status = 'Incomplete';
-      } else if (required <= 0){
+      } else if (required <= 0) {
         neededFinalPct = 0;
         needNote = 'You\'ve already secured this grade before the final.';
         status = 'Goal reached';
-      } else if (required > 100){
-        const maxOverall = cMid + cAss + (wFin*100)/100;
+      } else if (required > 100) {
+        const maxOverall = cMid + cAss + cPrac + (wFin * 100) / 100;
         needNote = `Even a perfect final only gets you to ~${fmt2(maxOverall)}%`;
         status = 'Unattainable';
       } else {
@@ -219,8 +226,8 @@ function compute(){
   }
 
   return {
-    wMid,wAss,wFin, mMid,mAss,mFin,
-    cMid,cAss,cFin, overall, okWeights,
+    wMid, wAss, wPrac, wFin, mMid, mAss, mPrac, mFin,
+    cMid, cAss, cPrac, cFin, overall, okWeights,
     grade, targetOverall, neededFinalPct, status, needNote,
     courseworkEquivalent,
     // consider valid weights sufficient to enable the UI even if marks are not yet entered
@@ -228,24 +235,24 @@ function compute(){
   };
 }
 
-function render(state){
+function render(state) {
   $('#resultCard').classList.toggle('inactive', !state.hasValidData);
 
   // Required Final: number (animated), note, status, progress, and state accent
   const needFinalEl = $('#needFinal');
-  if (state.neededFinalPct==null || !isFinite(state.neededFinalPct)) {
+  if (state.neededFinalPct == null || !isFinite(state.neededFinalPct)) {
     needFinalEl.textContent = '—';
     needFinalEl.dataset.prev = 0;
   } else {
     // allow values > 100% in the display
     const val = Math.max(0, state.neededFinalPct);
-    tweenNumber(needFinalEl, val, {decimals:2, duration:700, suffix:'%'});
+    tweenNumber(needFinalEl, val, { decimals: 2, duration: 700, suffix: '%' });
   }
   $('#needNote').textContent = state.needNote;
   const needBar = $('#needBar');
   const needCard = $('#needCard');
   needCard.className = 'need-card'; // reset
-  const needPct = (state.neededFinalPct!=null && isFinite(state.neededFinalPct)) ? Math.max(0, Math.min(100, state.neededFinalPct)) : 0;
+  const needPct = (state.neededFinalPct != null && isFinite(state.neededFinalPct)) ? Math.max(0, Math.min(100, state.neededFinalPct)) : 0;
   needBar.style.width = needPct + '%';
 
   // Status chip + color accents
@@ -254,28 +261,28 @@ function render(state){
   chip.className = 'badge rounded-pill status-badge';
   needFinalEl.className = 'need-number';
 
-  if (state.status === 'Goal reached'){
-    chip.classList.add('bg-success','text-dark','pop'); setTimeout(()=>chip.classList.remove('pop'), 250);
+  if (state.status === 'Goal reached') {
+    chip.classList.add('bg-success', 'text-dark', 'pop'); setTimeout(() => chip.classList.remove('pop'), 250);
     needFinalEl.classList.add('text-success');
     needCard.classList.add('need-ok');
     fireConfetti();
   }
-  else if (state.status === 'On track'){
-    chip.classList.add('bg-info','text-dark','pop'); setTimeout(()=>chip.classList.remove('pop'), 250);
+  else if (state.status === 'On track') {
+    chip.classList.add('bg-info', 'text-dark', 'pop'); setTimeout(() => chip.classList.remove('pop'), 250);
     needFinalEl.classList.add('text-info');
     needCard.classList.add('need-info');
   }
-  else if (state.status === 'Unattainable'){
-    chip.classList.add('bg-danger','pop'); setTimeout(()=>chip.classList.remove('pop'), 250);
+  else if (state.status === 'Unattainable') {
+    chip.classList.add('bg-danger', 'pop'); setTimeout(() => chip.classList.remove('pop'), 250);
     needFinalEl.classList.add('text-danger');
     needCard.classList.add('need-bad');
   }
-  else if (state.status === 'Fix weights' || state.status === 'Enter marks' || state.status === 'Incomplete'){
-    chip.classList.add('bg-warning','text-dark');
+  else if (state.status === 'Fix weights' || state.status === 'Enter marks' || state.status === 'Incomplete') {
+    chip.classList.add('bg-warning', 'text-dark');
     needFinalEl.classList.add('text-warning');
     needCard.classList.add('need-warn');
   }
-  else{
+  else {
     chip.classList.add('bg-secondary');
     needFinalEl.classList.add('text-info');
   }
@@ -286,7 +293,7 @@ function render(state){
   const overallEl = $('#overallBig');
   if (overallEl) {
     if (state.hasValidData && isFinite(state.overall)) {
-      tweenNumber(overallEl, state.overall, {decimals:2});
+      tweenNumber(overallEl, state.overall, { decimals: 2 });
     } else {
       overallEl.textContent = '—';
       overallEl.dataset.prev = 0;
@@ -302,9 +309,9 @@ function render(state){
   if (gradeEl) {
     gradeEl.textContent = letter ?? '—';
     gradeEl.className = 'overall-badge ' + (letter ? gradeClass(letter) : 'grade-c');
-    if (letter && prevLetter && letter !== prevLetter){
+    if (letter && prevLetter && letter !== prevLetter) {
       gradeEl.classList.add('sparkle');
-      setTimeout(()=>gradeEl.classList.remove('sparkle'), 900);
+      setTimeout(() => gradeEl.classList.remove('sparkle'), 900);
     }
   }
   lastLetter = letter;
@@ -312,13 +319,13 @@ function render(state){
   // update computed coursework (100%) when in individual mode
   const cwEl = $('#mCourseworkComputed');
   if (cwEl) {
-    if (state.courseworkEquivalent==null || !isFinite(state.courseworkEquivalent)) {
+    if (state.courseworkEquivalent == null || !isFinite(state.courseworkEquivalent)) {
       cwEl.textContent = '—';
       cwEl.classList.remove('has-value');
       cwEl.classList.add('text-muted');
       cwEl.removeAttribute('aria-valuenow');
     } else {
-      const sVal = Math.round(state.courseworkEquivalent*10)/10;
+      const sVal = Math.round(state.courseworkEquivalent * 10) / 10;
       const formatted = sVal.toFixed(1).endsWith('.0') ? String(parseInt(sVal)) : sVal.toFixed(1);
       cwEl.textContent = formatted;
       cwEl.classList.add('has-value');
@@ -328,7 +335,7 @@ function render(state){
   }
 }
 
-function computeAndRender(){
+function computeAndRender() {
   const s = compute();
   render(s);
   saveToStorage();
@@ -336,24 +343,35 @@ function computeAndRender(){
 
 
 /* ----------------------- Visibility helpers ----------------------- */
-function setIndividualMarksVisible(on){
-  $('#courseworkWrap').style.display = on ? 'none' : '';
-  $('#midWrap').style.display = on ? '' : 'none';
-  $('#assWrap').style.display = on ? '' : 'none';
+function toDisplay(on) { return on ? '' : 'none'; }
+
+function setIndividualMarksVisible(on) {
+  const col = $('#wPracCol');
+  const hasPrac = col && col.style.display !== 'none';
+  $('#courseworkWrap').style.display = toDisplay(!on);
+  $('#midWrap').style.display = toDisplay(on);
+  $('#assWrap').style.display = toDisplay(on);
+  $('#pracWrap').style.display = toDisplay(on && hasPrac);
   const cwWrap = $('#courseworkComputedWrap');
-  if (cwWrap) cwWrap.style.display = on ? '' : 'none';
+  if (cwWrap) cwWrap.style.display = toDisplay(on);
+}
+
+function updatePracVisibility(hasPrac) {
+  const col = $('#wPracCol');
+  if (col) col.style.display = toDisplay(hasPrac);
+  setIndividualMarksVisible($('#marksModeToggle').checked);
 }
 
 /* ----------------------- Events ----------------------- */
-function bindNumericOneDec(selector){
-  $$(selector).forEach(el=>{
-    el.addEventListener('input', ()=>{ clampOneDec(el); computeAndRender(); });
-    el.addEventListener('change', ()=>{ clampOneDec(el); computeAndRender(); });
-    el.addEventListener('blur',  ()=>{ clampOneDec(el); computeAndRender(); });
+function bindNumericOneDec(selector) {
+  $$(selector).forEach(el => {
+    el.addEventListener('input', () => { clampOneDec(el); computeAndRender(); });
+    el.addEventListener('change', () => { clampOneDec(el); computeAndRender(); });
+    el.addEventListener('blur', () => { clampOneDec(el); computeAndRender(); });
   });
 }
-function bindWeightPreset(selId, inputId){
-  $(selId).addEventListener('change', (e)=>{
+function bindWeightPreset(selId, inputId) {
+  $(selId).addEventListener('change', (e) => {
     const v = e.target.value;
     if (v !== '') {
       const input = $(inputId);
@@ -363,19 +381,31 @@ function bindWeightPreset(selId, inputId){
     }
   });
 }
-function bindCoursePresets(){
-  $('#coursePreset').addEventListener('change', (e)=>{
+function bindCoursePresets() {
+  $('#coursePreset').addEventListener('change', (e) => {
     const v = e.target.value;
-    toggleWeightInputs(v !== '');
-    if (v==='SRE' || v===''){ $('#wMid').value='24'; $('#wAss').value='36'; $('#wFin').value='40'; }
-    else if (v==='SDA'){ $('#wMid').value='24'; $('#wAss').value='36'; $('#wFin').value='40'; }
-    else if (v==='WIS'){ $('#wMid').value='14'; $('#wAss').value='56'; $('#wFin').value='30'; }
-    clampOneDec($('#wMid')); clampOneDec($('#wAss')); clampOneDec($('#wFin'));
+    const isCustom = (v === '');
+    const hasPrac = (v === 'MAD' || isCustom);
+
+    updatePracVisibility(hasPrac);
+    toggleWeightInputs(!isCustom);
+
+    if (v === 'ADB') { $('#wMid').value = '28'; $('#wAss').value = '42'; $('#wFin').value = '30'; $('#wPrac').value = '0'; }
+    else if (v === 'SQM' || v === 'ST' || v === 'SEEP') { $('#wMid').value = '24'; $('#wAss').value = '36'; $('#wFin').value = '40'; $('#wPrac').value = '0'; }
+    else if (v === 'ADM') { $('#wMid').value = '25'; $('#wAss').value = '25'; $('#wFin').value = '50'; $('#wPrac').value = '0'; }
+    else if (v === 'MAD') { $('#wMid').value = '10'; $('#wAss').value = '35'; $('#wFin').value = '30'; $('#wPrac').value = '25'; }
+
+    if (!hasPrac) {
+      $('#wPrac').value = '0';
+      $('#mPrac').value = '';
+    }
+
+    clampOneDec($('#wMid')); clampOneDec($('#wAss')); clampOneDec($('#wFin')); clampOneDec($('#wPrac'));
     computeAndRender();
   });
 }
-function bindMarkToggle(){
-  $('#marksModeToggle').addEventListener('change', (e)=>{
+function bindMarkToggle() {
+  $('#marksModeToggle').addEventListener('change', (e) => {
     const on = e.target.checked;
     setIndividualMarksVisible(on);
     if (on) {
@@ -383,13 +413,14 @@ function bindMarkToggle(){
       if (coursework !== null) {
         $('#mMid').value = $('#mCoursework').value;
         $('#mAss').value = $('#mCoursework').value;
-        clampOneDec($('#mMid')); clampOneDec($('#mAss'));
+        $('#mPrac').value = $('#mCoursework').value;
+        clampOneDec($('#mMid')); clampOneDec($('#mAss')); clampOneDec($('#mPrac'));
       }
     } else {
       // if we have a computed coursework value from the individual inputs, copy it back
       const cwEl = $('#mCourseworkComputed');
       if (cwEl && cwEl.textContent && cwEl.textContent.trim() !== '—') {
-        const parsed = parseFloat(cwEl.textContent.toString().replace(',','.'));
+        const parsed = parseFloat(cwEl.textContent.toString().replace(',', '.'));
         if (!isNaN(parsed) && isFinite(parsed)) {
           $('#mCoursework').value = String(parsed);
           clampOneDec($('#mCoursework'));
@@ -401,30 +432,30 @@ function bindMarkToggle(){
 }
 
 /* ✨ Reveal-on-scroll */
-function initReveals(){
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(entry=>{
+function initReveals() {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
       if (entry.isIntersecting) entry.target.classList.add('visible');
     });
-  },{threshold:.12});
-  $$('.reveal').forEach(el=>io.observe(el));
+  }, { threshold: .12 });
+  $$('.reveal').forEach(el => io.observe(el));
 }
 
 /* ✨ Tilt cards */
-function initTilt(){
+function initTilt() {
   const els = $$('.tilt');
-  els.forEach(el=>{
-    el.addEventListener('pointermove', (e)=>{
+  els.forEach(el => {
+    el.addEventListener('pointermove', (e) => {
       const r = el.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width;
       const y = (e.clientY - r.top) / r.height;
       const rx = (y - .5) * -6; // rotateX
       const ry = (x - .5) * 8;  // rotateY
-      el.style.setProperty('--rx', rx+'deg');
-      el.style.setProperty('--ry', ry+'deg');
+      el.style.setProperty('--rx', rx + 'deg');
+      el.style.setProperty('--ry', ry + 'deg');
       el.style.setProperty('--ty', '-2px');
     });
-    el.addEventListener('pointerleave', ()=>{
+    el.addEventListener('pointerleave', () => {
       el.style.setProperty('--rx', '0deg');
       el.style.setProperty('--ry', '0deg');
       el.style.setProperty('--ty', '0');
@@ -433,29 +464,29 @@ function initTilt(){
 }
 
 /* ✨ Confetti (fires on goal reached, throttled) */
-function fireConfetti(){
+function fireConfetti() {
   const now = Date.now();
   if (now - confettiCooldown < 1200) return; // throttle
   confettiCooldown = now;
 
-  const colors = ['#37d67a','#4ba3ff','#83ffe9','#f4a261','#e76f51','#b8e1ff'];
-  for (let i=0;i<80;i++){
+  const colors = ['#37d67a', '#4ba3ff', '#83ffe9', '#f4a261', '#e76f51', '#b8e1ff'];
+  for (let i = 0; i < 80; i++) {
     const d = document.createElement('div');
     d.className = 'confetti';
     d.style.background = colors[i % colors.length];
-    d.style.left = (Math.random()*100)+'vw';
-    d.style.setProperty('--x', (Math.random()*40 - 20)+'vw');
-    d.style.setProperty('--y', (60 + Math.random()*20)+'vh');
-    d.style.setProperty('--r', (Math.random()*2 + .5)+'turn');
-    d.style.setProperty('--t', (800 + Math.random()*900)+'ms');
+    d.style.left = (Math.random() * 100) + 'vw';
+    d.style.setProperty('--x', (Math.random() * 40 - 20) + 'vw');
+    d.style.setProperty('--y', (60 + Math.random() * 20) + 'vh');
+    d.style.setProperty('--r', (Math.random() * 2 + .5) + 'turn');
+    d.style.setProperty('--t', (800 + Math.random() * 900) + 'ms');
     document.body.appendChild(d);
-    setTimeout(()=>d.remove(), 1800);
+    setTimeout(() => d.remove(), 1800);
   }
 }
 
 /* ----------------------- Init ----------------------- */
-window.addEventListener('DOMContentLoaded', ()=>{
-  bindNumericOneDec('#wMid,#wAss,#wFin,#mMid,#mAss,#mFin,#mCoursework');
+window.addEventListener('DOMContentLoaded', () => {
+  bindNumericOneDec('#wMid,#wAss,#wPrac,#wFin,#mMid,#mAss,#mPrac,#mFin,#mCoursework');
   bindCoursePresets();
   bindMarkToggle();
 
@@ -463,10 +494,16 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
   loadFromStorage();
 
-  if (!$('#wMid').value && !$('#wAss').value && !$('#wFin').value && $('#coursePreset').value === ''){
-    $('#wMid').value = '24'; $('#wAss').value = '36'; $('#wFin').value = '40';
+  // Initial visibility check
+  const preset = $('#coursePreset').value;
+  const isCustom = (preset === '');
+  const hasPrac = (preset === 'MAD' || isCustom);
+  updatePracVisibility(hasPrac);
+
+  if (!$('#wMid').value && !$('#wAss').value && !$('#wFin').value && !$('#wPrac').value && isCustom) {
+    $('#wMid').value = '24'; $('#wAss').value = '36'; $('#wFin').value = '40'; $('#wPrac').value = '0';
     $('#mCoursework').value = '96';
-    clampOneDec($('#wMid')); clampOneDec($('#wAss')); clampOneDec($('#wFin'));
+    clampOneDec($('#wMid')); clampOneDec($('#wAss')); clampOneDec($('#wFin')); clampOneDec($('#wPrac'));
     clampOneDec($('#mCoursework'));
   }
 
